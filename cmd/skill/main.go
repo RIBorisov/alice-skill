@@ -4,9 +4,11 @@ import (
 	"alice-skill/internal/logger"
 	"alice-skill/internal/models"
 	"encoding/json"
+	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -51,11 +53,28 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
+	text := "Для вас нет новых сообщений."
+	// первый запрос новой сессии
+	if req.Session.New {
+		// обрабатываем Timezone
+		tz, err := time.LoadLocation(req.Timezone)
+		if err != nil {
+			logger.Log.Debug("cannot parse timezone")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		// получаем текущее время в часовом поясе пользователя
+		now := time.Now().In(tz)
+		hour, minute, _ := now.Clock()
+
+		// формируем текст ответа
+		text = fmt.Sprintf("Точное время %d часов, %d минут. %s", hour, minute, text)
+	}
 
 	// заполняем модель ответа
 	resp := models.Response{
 		Response: models.ResponsePayload{
-			Text: "Извините, я пока ничего не умею",
+			Text: text, // Алиса говорит новый текст
 		},
 		Version: "1.0",
 	}
